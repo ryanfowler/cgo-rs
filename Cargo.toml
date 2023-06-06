@@ -1,0 +1,11 @@
+[package]
+name = "cgo"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ryan Fowler"]
+description = "A library for build scripts to compile custom Go code"
+repository = "https://github.com/ryanfowler/cgo-rs"
+documentation = "https://docs.rs/cgo"
+license = "MIT"
+keywords = ["build-dependencies"]
+categories = ["development-tools::build-utils"]
