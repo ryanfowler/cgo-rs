@@ -1,5 +1,6 @@
 use std::{
     env,
+    ffi::{OsStr, OsString},
     path::{Path, PathBuf},
     process,
 };
@@ -7,6 +8,7 @@ use std::{
 pub struct Build {
     build_mode: BuildMode,
     cargo_metadata: bool,
+    ldflags: Option<OsString>,
     out_dir: Option<PathBuf>,
     packages: Vec<PathBuf>,
     trimpath: bool,
@@ -23,6 +25,7 @@ impl Build {
         Build {
             build_mode: BuildMode::default(),
             cargo_metadata: true,
+            ldflags: None,
             out_dir: None,
             packages: Vec::default(),
             trimpath: false,
@@ -31,6 +34,11 @@ impl Build {
 
     pub fn cargo_metadata(&mut self, cargo_metadata: bool) -> &mut Build {
         self.cargo_metadata = cargo_metadata;
+        self
+    }
+
+    pub fn ldflags<P: AsRef<OsStr>>(&mut self, ldflags: P) -> &mut Build {
+        self.ldflags = Some(ldflags.as_ref().to_os_string());
         self
     }
 
@@ -76,6 +84,9 @@ impl Build {
             .arg("build")
             .args(["-buildmode", &self.build_mode.to_string()])
             .args(["-o".into(), out_path]);
+        if let Some(ldflags) = &self.ldflags {
+            cmd.args(["-ldflags".into(), ldflags.to_owned()]);
+        }
         if self.trimpath {
             cmd.arg("-trimpath");
         }
