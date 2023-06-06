@@ -71,6 +71,8 @@ impl Build {
         cmd.env("CGO_ENABLED", "1")
             .env("GOOS", goos)
             .env("GOARCH", goarch)
+            .env("CC", get_cc())
+            .env("CXX", get_cxx())
             .arg("build")
             .args(["-buildmode", &self.build_mode.to_string()])
             .args(["-o".into(), out_path]);
@@ -92,8 +94,12 @@ impl Build {
         };
 
         if self.cargo_metadata {
+            let link_kind = match self.build_mode {
+                BuildMode::CArchive => "static",
+                BuildMode::CShared => "dylib",
+            };
+            println!("cargo:rustc-link-lib={}={}", link_kind, output);
             println!("cargo:rustc-link-search=native={}", out_dir.display());
-            println!("cargo:rustc-link-lib=static={}", output);
         }
 
         if status.success() {
@@ -175,6 +181,18 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}: {}", self.kind, self.message)
     }
+}
+
+fn get_cc() -> PathBuf {
+    cc::Build::new().get_compiler().path().to_path_buf()
+}
+
+fn get_cxx() -> PathBuf {
+    cc::Build::new()
+        .cpp(true)
+        .get_compiler()
+        .path()
+        .to_path_buf()
 }
 
 fn goarch_from_env() -> Result<String, Error> {

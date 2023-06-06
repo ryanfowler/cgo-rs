@@ -9,3 +9,6 @@ documentation = "https://docs.rs/cgo"
 license = "MIT"
 keywords = ["build-dependencies"]
 categories = ["development-tools::build-utils"]
+
+[dependencies]
+cc = { version = "1.0.79" }
