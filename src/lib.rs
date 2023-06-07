@@ -37,6 +37,7 @@ use std::{
 pub struct Build {
     build_mode: BuildMode,
     cargo_metadata: bool,
+    change_dir: Option<PathBuf>,
     ldflags: Option<OsString>,
     out_dir: Option<PathBuf>,
     packages: Vec<PathBuf>,
@@ -55,6 +56,7 @@ impl Build {
         Build {
             build_mode: BuildMode::default(),
             cargo_metadata: true,
+            change_dir: None,
             ldflags: None,
             out_dir: None,
             packages: Vec::default(),
@@ -77,6 +79,13 @@ impl Build {
     /// By default, cargo metadata is enabled.
     pub fn cargo_metadata(&mut self, cargo_metadata: bool) -> &mut Self {
         self.cargo_metadata = cargo_metadata;
+        self
+    }
+
+    /// Instruct the builder to change to `dir` before running the `go build`
+    /// command. All other paths are interpreted after changing directories.
+    pub fn change_dir<P: AsRef<Path>>(&mut self, dir: P) -> &mut Self {
+        self.change_dir = Some(dir.as_ref().to_owned());
         self
     }
 
@@ -142,6 +151,9 @@ impl Build {
             .arg("build")
             .args(["-buildmode", &self.build_mode.to_string()])
             .args(["-o".into(), out_path]);
+        if let Some(change_dir) = &self.change_dir {
+            cmd.args([&"-C".into(), change_dir]);
+        }
         if let Some(ldflags) = &self.ldflags {
             cmd.args([&"-ldflags".into(), ldflags]);
         }
