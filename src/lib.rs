@@ -1,3 +1,30 @@
+//! A library for build scripts to compile custom Go code, inspired by the
+//! excellent [cc](https://docs.rs/cc/latest/cc) crate.
+//!
+//! It is intended that you use this library from within your `build.rs` file by
+//! adding the cgo crate to your [`build-dependencies`](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#build-dependencies):
+//!
+//! ```toml
+//! [build-dependencies]
+//! cgo = "*"
+//! ```
+//!
+//! # Examples
+//!
+//! The following example will statically compile the Go package and instruct
+//! cargo to link the resulting library (`libexample`).
+//!
+//! ```
+//! fn main() {
+//!     cgo::Build::new()
+//!         .package("pkg/example/main.go")
+//!         .build("example");
+//! }
+//! ```
+
+#![forbid(unsafe_code)]
+#![allow(clippy::needless_doctest_main)]
+
 use std::{
     env,
     ffi::{OsStr, OsString},
@@ -5,6 +32,8 @@ use std::{
     process,
 };
 
+/// A builder for the compilation of a Go library.
+#[derive(Clone, Debug)]
 pub struct Build {
     build_mode: BuildMode,
     cargo_metadata: bool,
@@ -21,6 +50,7 @@ impl Default for Build {
 }
 
 impl Build {
+    /// Returns a new instance of `Build` with the default configuration.
     pub fn new() -> Self {
         Build {
             build_mode: BuildMode::default(),
@@ -32,31 +62,48 @@ impl Build {
         }
     }
 
+    /// Instruct the builder to automatically output cargo metadata or not.
+    ///
+    /// By default, cargo metadata is enabled.
     pub fn cargo_metadata(&mut self, cargo_metadata: bool) -> &mut Build {
         self.cargo_metadata = cargo_metadata;
         self
     }
 
+    /// Instruct the builder to pass in the provided ldflags during compilation.
     pub fn ldflags<P: AsRef<OsStr>>(&mut self, ldflags: P) -> &mut Build {
         self.ldflags = Some(ldflags.as_ref().to_os_string());
         self
     }
 
+    /// Instruct the builder to use the provided directory for output.
+    ///
+    /// By default, the cargo-provided `OUT_DIR` env var is used.
     pub fn out_dir<P: AsRef<Path>>(&mut self, out_dir: P) -> &mut Build {
         self.out_dir = Some(out_dir.as_ref().to_owned());
         self
     }
 
+    /// Instruct the builder to compile the provided Go package.
+    ///
+    /// Note: The `go build` command can be passed multiple packages and this
+    /// method may be called more than once.
     pub fn package<P: AsRef<Path>>(&mut self, package: P) -> &mut Build {
         self.packages.push(package.as_ref().to_owned());
         self
     }
 
+    /// Instruct the builder to enable the `-trimpath` flag during compilation.
     pub fn trimpath(&mut self, trimpath: bool) -> &mut Build {
         self.trimpath = trimpath;
         self
     }
 
+    /// Builds the Go package, generating the file `output`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any error occurs during compilation.
     pub fn build(&self, output: &str) {
         if let Err(err) = self.try_build(output) {
             eprintln!("\n\nerror occurred: {}\n", err);
@@ -64,6 +111,7 @@ impl Build {
         }
     }
 
+    /// Builds the Go package, generating the file `output`.
     pub fn try_build(&self, output: &str) -> Result<(), Error> {
         let goos = goos_from_env()?;
         let goarch = goarch_from_env()?;
@@ -85,7 +133,7 @@ impl Build {
             .args(["-buildmode", &self.build_mode.to_string()])
             .args(["-o".into(), out_path]);
         if let Some(ldflags) = &self.ldflags {
-            cmd.args(["-ldflags".into(), ldflags.to_owned()]);
+            cmd.args([&"-ldflags".into(), ldflags]);
         }
         if self.trimpath {
             cmd.arg("-trimpath");
@@ -147,10 +195,22 @@ impl Build {
     }
 }
 
+/// BuildMode to be used during compilation.
+///
+/// Refer to the [Go docs](https://pkg.go.dev/cmd/go#hdr-Build_modes)
+/// for more information.
 #[derive(Clone, Debug, Default)]
 pub enum BuildMode {
+    /// Build the listed main package, plus all packages it imports,
+    /// into a C archive file. The only callable symbols will be those
+    /// functions exported using a cgo //export comment. Requires
+    /// exactly one main package to be listed.
     #[default]
     CArchive,
+    /// Build the listed main package, plus all packages it imports,
+    /// into a C shared library. The only callable symbols will
+    /// be those functions exported using a cgo //export comment.
+    /// Requires exactly one main package to be listed.
     CShared,
 }
 
@@ -163,6 +223,7 @@ impl std::fmt::Display for BuildMode {
     }
 }
 
+/// Kind of error that was encountered.
 #[derive(Clone, Debug)]
 enum ErrorKind {
     EnvVarNotFound,
@@ -171,6 +232,7 @@ enum ErrorKind {
     ToolExecError,
 }
 
+/// Represents an internal error that occurred, including an explanation.
 #[derive(Clone, Debug)]
 pub struct Error {
     kind: ErrorKind,
