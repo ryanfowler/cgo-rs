@@ -1,5 +1,7 @@
 # cgo-rs
 
+[![](https://img.shields.io/crates/v/cgo.svg)](https://crates.io/crates/cgo)
+
 A library for build scripts to compile custom Go code, inspired by the
 excellent [cc](https://docs.rs/cc/latest/cc) crate.
 
