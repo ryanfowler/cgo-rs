@@ -62,16 +62,26 @@ impl Build {
         }
     }
 
+    /// Instruct the builder to use the provided build mode.
+    ///
+    /// For more information, see https://pkg.go.dev/cmd/go#hdr-Build_modes
+    ///
+    /// By default, 'CArchive' is used.
+    pub fn build_mode(&mut self, build_mode: BuildMode) -> &mut Self {
+        self.build_mode = build_mode;
+        self
+    }
+
     /// Instruct the builder to automatically output cargo metadata or not.
     ///
     /// By default, cargo metadata is enabled.
-    pub fn cargo_metadata(&mut self, cargo_metadata: bool) -> &mut Build {
+    pub fn cargo_metadata(&mut self, cargo_metadata: bool) -> &mut Self {
         self.cargo_metadata = cargo_metadata;
         self
     }
 
     /// Instruct the builder to pass in the provided ldflags during compilation.
-    pub fn ldflags<P: AsRef<OsStr>>(&mut self, ldflags: P) -> &mut Build {
+    pub fn ldflags<P: AsRef<OsStr>>(&mut self, ldflags: P) -> &mut Self {
         self.ldflags = Some(ldflags.as_ref().to_os_string());
         self
     }
@@ -79,7 +89,7 @@ impl Build {
     /// Instruct the builder to use the provided directory for output.
     ///
     /// By default, the cargo-provided `OUT_DIR` env var is used.
-    pub fn out_dir<P: AsRef<Path>>(&mut self, out_dir: P) -> &mut Build {
+    pub fn out_dir<P: AsRef<Path>>(&mut self, out_dir: P) -> &mut Self {
         self.out_dir = Some(out_dir.as_ref().to_owned());
         self
     }
@@ -88,13 +98,13 @@ impl Build {
     ///
     /// Note: The `go build` command can be passed multiple packages and this
     /// method may be called more than once.
-    pub fn package<P: AsRef<Path>>(&mut self, package: P) -> &mut Build {
+    pub fn package<P: AsRef<Path>>(&mut self, package: P) -> &mut Self {
         self.packages.push(package.as_ref().to_owned());
         self
     }
 
     /// Instruct the builder to enable the `-trimpath` flag during compilation.
-    pub fn trimpath(&mut self, trimpath: bool) -> &mut Build {
+    pub fn trimpath(&mut self, trimpath: bool) -> &mut Self {
         self.trimpath = trimpath;
         self
     }
