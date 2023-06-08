@@ -134,6 +134,7 @@ impl Build {
     pub fn try_build(&self, output: &str) -> Result<(), Error> {
         let goos = goos_from_env()?;
         let goarch = goarch_from_env()?;
+        let target_env = get_env_var("CARGO_CFG_TARGET_ENV")?;
 
         let lib_name = self.format_lib_name(output);
         let out_dir = match &self.out_dir {
@@ -146,16 +147,21 @@ impl Build {
         cmd.env("CGO_ENABLED", "1")
             .env("GOOS", goos)
             .env("GOARCH", goarch)
-            .env("CC", get_cc())
-            .env("CXX", get_cxx())
+            .env("CC", to_quoted(get_cc()))
+            .env("CXX", to_quoted(get_cxx()))
             .arg("build")
             .args(["-buildmode", &self.build_mode.to_string()])
             .args(["-o".into(), out_path]);
         if let Some(change_dir) = &self.change_dir {
             cmd.args([&"-C".into(), change_dir]);
         }
-        if let Some(ldflags) = &self.ldflags {
-            cmd.args([&"-ldflags".into(), ldflags]);
+        let mut ldflags = self.ldflags.clone().unwrap_or_default();
+        if target_env == "musl" {
+            cmd.arg("-a");
+            ldflags.push(" -linkmode external -extldflags '-static'");
+        }
+        if ldflags.len() > 0 {
+            cmd.args([&"-ldflags".into(), &ldflags]);
         }
         if self.trimpath {
             cmd.arg("-trimpath");
@@ -163,6 +169,8 @@ impl Build {
         for package in &self.packages {
             cmd.arg(package);
         }
+
+        println!("cargo:warning={:?}", cmd);
 
         let cmd_out = match cmd.output() {
             Ok(output) => output,
@@ -292,6 +300,14 @@ fn get_cxx() -> PathBuf {
         .get_compiler()
         .path()
         .to_path_buf()
+}
+
+fn to_quoted(p: PathBuf) -> OsString {
+    let mut out = OsString::new();
+    out.push("\"");
+    out.push(p);
+    out.push("\"");
+    out
 }
 
 fn goarch_from_env() -> Result<String, Error> {
