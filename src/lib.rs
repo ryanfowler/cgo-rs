@@ -164,8 +164,8 @@ impl Build {
             cmd.arg(package);
         }
 
-        let status = match cmd.output() {
-            Ok(output) => output.status,
+        let cmd_out = match cmd.output() {
+            Ok(output) => output,
             Err(err) => {
                 return Err(Error::new(
                     ErrorKind::ToolExecError,
@@ -183,12 +183,16 @@ impl Build {
             println!("cargo:rustc-link-search=native={}", out_dir.display());
         }
 
-        if status.success() {
+        if cmd_out.status.success() {
             Ok(())
         } else {
             Err(Error::new(
                 ErrorKind::ToolExecError,
-                &format!("failed to build Go library: status {}", status),
+                &format!(
+                    "failed to build Go library: status {}\n\n{}\n",
+                    cmd_out.status,
+                    String::from_utf8(cmd_out.stderr).unwrap()
+                ),
             ))
         }
     }
