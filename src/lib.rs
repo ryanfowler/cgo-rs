@@ -28,6 +28,7 @@
 use std::{
     env,
     ffi::{OsStr, OsString},
+    fmt::Write,
     path::{Path, PathBuf},
     process,
 };
@@ -164,8 +165,8 @@ impl Build {
             cmd.arg(package);
         }
 
-        let status = match cmd.output() {
-            Ok(output) => output.status,
+        let build_output = match cmd.output() {
+            Ok(build_output) => build_output,
             Err(err) => {
                 return Err(Error::new(
                     ErrorKind::ToolExecError,
@@ -183,14 +184,30 @@ impl Build {
             println!("cargo:rustc-link-search=native={}", out_dir.display());
         }
 
-        if status.success() {
-            Ok(())
-        } else {
-            Err(Error::new(
-                ErrorKind::ToolExecError,
-                &format!("failed to build Go library: status {}", status),
-            ))
+        if build_output.status.success() {
+            return Ok(());
         }
+
+        let mut message = format!(
+            "failed to build Go library ({}). Build output:",
+            build_output.status
+        );
+
+        let mut push_output = |stream_name, bytes| {
+            let string = String::from_utf8_lossy(bytes);
+            let string = string.trim();
+
+            if string.is_empty() {
+                return;
+            }
+
+            write!(&mut message, "\n=== {stream_name}:\n{string}").unwrap();
+        };
+
+        push_output("stdout", &build_output.stdout);
+        push_output("stderr", &build_output.stderr);
+
+        Err(Error::new(ErrorKind::ToolExecError, &message))
     }
 
     fn format_lib_name(&self, output: &str) -> PathBuf {
