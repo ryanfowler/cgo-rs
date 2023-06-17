@@ -14,7 +14,7 @@
 //! The following example will statically compile the Go package and instruct
 //! cargo to link the resulting library (`libexample`).
 //!
-//! ```
+//! ```no_run
 //! fn main() {
 //!     cgo::Build::new()
 //!         .package("pkg/example/main.go")
