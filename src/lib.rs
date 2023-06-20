@@ -96,7 +96,7 @@ impl Build {
 
     /// Instruct the builder to set the GOARCH to the provided value.
     ///
-    /// By default, this value is set from the `std::env::consts::ARCH` constant.
+    /// By default, this value is set from the CARGO_CFG_TARGET_ARCH env var.
     pub fn goarch(&mut self, goarch: &str) -> &mut Self {
         self.goarch = Some(goarch.to_owned());
         self
@@ -104,7 +104,7 @@ impl Build {
 
     /// Instruct the builder to set the GOOS to the provided value.
     ///
-    /// By default, this value is set from the `std::env::consts::OS` constant.
+    /// By default, this value is set from the CARGO_CFG_TARGET_OS env var.
     pub fn goos(&mut self, goos: &str) -> &mut Self {
         self.goos = Some(goos.to_owned());
         self
@@ -338,16 +338,17 @@ fn get_cxx() -> PathBuf {
 }
 
 fn goarch_from_env() -> Result<String, Error> {
+    let target_arch = get_env_var("CARGO_CFG_TARGET_ARCH")?;
+
     // From the following references:
     // https://doc.rust-lang.org/reference/conditional-compilation.html#target_arch
     // https://go.dev/doc/install/source#environment
-    let target_arch = env::consts::ARCH;
-    let goarch = match target_arch {
+    let goarch = match target_arch.as_str() {
         "x86" => "386",
         "x86_64" => "amd64",
         "powerpc64" => "ppc64",
         "aarch64" => "arm64",
-        "mips" | "mips64" | "arm" => target_arch,
+        "mips" | "mips64" | "arm" => &target_arch,
         _ => {
             return Err(Error::new(
                 ErrorKind::InvalidGOARCH,
@@ -359,14 +360,15 @@ fn goarch_from_env() -> Result<String, Error> {
 }
 
 fn goos_from_env() -> Result<String, Error> {
+    let target_os = get_env_var("CARGO_CFG_TARGET_OS")?;
+
     // From the following references:
     // https://doc.rust-lang.org/reference/conditional-compilation.html#target_os
     // https://go.dev/doc/install/source#environment
-    let target_os = env::consts::OS;
-    let goos = match target_os {
+    let goos = match target_os.as_str() {
         "macos" => "darwin",
         "windows" | "ios" | "linux" | "android" | "freebsd" | "dragonfly" | "openbsd"
-        | "netbsd" => target_os,
+        | "netbsd" => &target_os,
         _ => {
             return Err(Error::new(
                 ErrorKind::InvalidGOOS,
