@@ -1,3 +1,4 @@
-# Added by cargo
 /Cargo.lock
 /target
+/cgo-test/Cargo.lock
+/cgo-test/target

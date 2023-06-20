@@ -5,6 +5,7 @@ on:
     branches: ["main"]
 
 env:
+  GO_VERSION: "1.20.5"
   RUST_VERSION: "1.70.0"
 
 jobs:
@@ -21,14 +22,22 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
 
-      - name: Rust cargo format
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Format
         run: cargo fmt --all -- --check
 
-      - name: Rust cargo clippy
+      - name: Clippy
         run: cargo clippy -- -D warnings
 
-      - name: Rust cargo test
+      - name: Test
         run: cargo test
 
-      - name: Rust cargo build
-        run: cargo build --locked
+      - name: Integration tests
+        run: cargo test --manifest-path cgo-test/Cargo.toml
+
+      - name: Build
+        run: cargo build
