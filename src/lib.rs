@@ -149,10 +149,10 @@ impl Build {
             .env("GOARCH", goarch)
             .env("CC", get_cc())
             .env("CXX", get_cxx())
-            .arg("build")
-            .args(["-buildmode", &self.build_mode.to_string()])
-            .args(["-o".into(), out_path]);
+            .arg("build");
         if let Some(change_dir) = &self.change_dir {
+            // This flag is required to be the first flag used in the command as
+            // of Go v1.21: https://tip.golang.org/doc/go1.21#go-command
             cmd.args([&"-C".into(), change_dir]);
         }
         if let Some(ldflags) = &self.ldflags {
@@ -161,6 +161,8 @@ impl Build {
         if self.trimpath {
             cmd.arg("-trimpath");
         }
+        cmd.args(["-buildmode", &self.build_mode.to_string()]);
+        cmd.args(["-o".into(), out_path]);
         for package in &self.packages {
             cmd.arg(package);
         }
