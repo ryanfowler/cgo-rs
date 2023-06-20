@@ -1,0 +1,12 @@
+[package]
+name = "cgo-test"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "cgo_test"
+doctest = false
+test = false
+
+[build-dependencies]
+cgo = { path = ".." }
