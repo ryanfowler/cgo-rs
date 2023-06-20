@@ -42,6 +42,7 @@ pub struct Build {
     goarch: Option<String>,
     goos: Option<String>,
     ldflags: Option<OsString>,
+    module_mode: Option<ModuleMode>,
     out_dir: Option<PathBuf>,
     packages: Vec<PathBuf>,
     trimpath: bool,
@@ -63,6 +64,7 @@ impl Build {
             goarch: None,
             goos: None,
             ldflags: None,
+            module_mode: None,
             out_dir: None,
             packages: Vec::default(),
             trimpath: false,
@@ -113,6 +115,14 @@ impl Build {
     /// Instruct the builder to pass in the provided ldflags during compilation.
     pub fn ldflags<P: AsRef<OsStr>>(&mut self, ldflags: P) -> &mut Self {
         self.ldflags = Some(ldflags.as_ref().to_os_string());
+        self
+    }
+
+    /// Instruct the builder to use the provided module mode.
+    ///
+    /// For more information, see https://go.dev/ref/mod#build-commands
+    pub fn module_mode(&mut self, module_mode: ModuleMode) -> &mut Self {
+        self.module_mode = Some(module_mode);
         self
     }
 
@@ -185,6 +195,9 @@ impl Build {
         }
         if let Some(ldflags) = &self.ldflags {
             cmd.args([&"-ldflags".into(), ldflags]);
+        }
+        if let Some(module_mode) = &self.module_mode {
+            cmd.args(["-mod", &module_mode.to_string()]);
         }
         if self.trimpath {
             cmd.arg("-trimpath");
@@ -288,6 +301,38 @@ impl std::fmt::Display for BuildMode {
         f.write_str(match self {
             Self::CArchive => "c-archive",
             Self::CShared => "c-shared",
+        })
+    }
+}
+
+/// ModuleMode to be used during compilation.
+///
+/// By default, if the go version in go.mod is 1.14 or higher and a vendor
+/// directory is present, the go command acts as if -mod=vendor were used.
+/// Otherwise, the go command acts as if -mod=readonly were used.
+///
+/// Refer to the [Go docs](https://go.dev/ref/mod#build-commands)
+/// for more information.
+#[derive(Clone, Debug)]
+pub enum ModuleMode {
+    /// Tells the go command to ignore the vendor directory and to automatically
+    /// update go.mod, for example, when an imported package is not provided by
+    /// any known module.
+    Mod,
+    /// Tells the go command to ignore the vendor directory and to report an
+    /// error if go.mod needs to be updated.
+    ReadOnly,
+    /// Tells the go command to use the vendor directory. In this mode, the go
+    /// command will not use the network or the module cache.
+    Vendor,
+}
+
+impl std::fmt::Display for ModuleMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Mod => "mod",
+            Self::ReadOnly => "readonly",
+            Self::Vendor => "vendor",
         })
     }
 }
