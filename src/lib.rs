@@ -39,6 +39,8 @@ pub struct Build {
     build_mode: BuildMode,
     cargo_metadata: bool,
     change_dir: Option<PathBuf>,
+    goarch: Option<String>,
+    goos: Option<String>,
     ldflags: Option<OsString>,
     out_dir: Option<PathBuf>,
     packages: Vec<PathBuf>,
@@ -58,6 +60,8 @@ impl Build {
             build_mode: BuildMode::default(),
             cargo_metadata: true,
             change_dir: None,
+            goarch: None,
+            goos: None,
             ldflags: None,
             out_dir: None,
             packages: Vec::default(),
@@ -87,6 +91,22 @@ impl Build {
     /// command. All other paths are interpreted after changing directories.
     pub fn change_dir<P: AsRef<Path>>(&mut self, dir: P) -> &mut Self {
         self.change_dir = Some(dir.as_ref().to_owned());
+        self
+    }
+
+    /// Instruct the builder to set the GOARCH to the provided value.
+    ///
+    /// By default, this value is set from the CARGO_CFG_TARGET_ARCH env var.
+    pub fn goarch(&mut self, goarch: &str) -> &mut Self {
+        self.goarch = Some(goarch.to_owned());
+        self
+    }
+
+    /// Instruct the builder to set the GOOS to the provided value.
+    ///
+    /// By default, this value is set from the CARGO_CFG_TARGET_OS env var.
+    pub fn goos(&mut self, goos: &str) -> &mut Self {
+        self.goos = Some(goos.to_owned());
         self
     }
 
@@ -133,8 +153,16 @@ impl Build {
 
     /// Builds the Go package, generating the file `output`.
     pub fn try_build(&self, output: &str) -> Result<(), Error> {
-        let goos = goos_from_env()?;
-        let goarch = goarch_from_env()?;
+        // Use the provided values for GOARCH and GOOS, otherwise fetch the
+        // values from the cargo build environnment variables.
+        let goarch = match &self.goarch {
+            None => goarch_from_env()?,
+            Some(goarch) => goarch.to_owned(),
+        };
+        let goos = match &self.goos {
+            None => goos_from_env()?,
+            Some(goos) => goos.to_owned(),
+        };
 
         let lib_name = self.format_lib_name(output);
         let out_dir = match &self.out_dir {
