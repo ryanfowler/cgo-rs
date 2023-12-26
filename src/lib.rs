@@ -155,10 +155,59 @@ impl Build {
     ///
     /// Panics if any error occurs during compilation.
     pub fn build(&self, output: &str) {
+        if let Err(err) = self.try_tidy() {
+            eprintln!("\n\nerror occurred: {}\n", err);
+            process::exit(1);
+        }
         if let Err(err) = self.try_build(output) {
             eprintln!("\n\nerror occurred: {}\n", err);
             process::exit(1);
         }
+    }
+
+    /// Downloads the dependency
+    pub fn try_tidy(&self) -> Result<(), Error> {
+        let mut cmd = process::Command::new("go");
+
+        cmd.arg("mod").arg("tidy");
+        if let Some(change_dir) = &self.change_dir {
+            cmd.args([&"-C".into(), change_dir]);
+        }
+
+        let tidy_output = match cmd.output() {
+            Ok(tidy_output) => tidy_output,
+            Err(err) => {
+                return Err(Error::new(
+                    ErrorKind::ToolExecError,
+                    &format!("failed to execute go command: {}", err),
+                ));
+            }
+        };
+
+        if tidy_output.status.success() {
+            return Ok(());
+        }
+
+        let mut message = format!(
+            "failed to tidy Go library ({}). Tidy output:",
+            tidy_output.status
+        );
+
+        let mut push_output = |stream_name, bytes| {
+            let string = String::from_utf8_lossy(bytes);
+            let string = string.trim();
+
+            if string.is_empty() {
+                return;
+            }
+
+            write!(&mut message, "\n=== {stream_name}:\n{string}").unwrap();
+        };
+
+        push_output("stdout", &tidy_output.stdout);
+        push_output("stderr", &tidy_output.stderr);
+
+        Err(Error::new(ErrorKind::ToolExecError, &message))
     }
 
     /// Builds the Go package, generating the file `output`.
