@@ -18,9 +18,22 @@ cgo = "*"
 The following example will statically compile the Go package and instruct
 cargo to link the resulting library (`libexample`).
 
+Not Windows:
+
 ```rust
 fn main() {
     cgo::Build::new()
+        .package("pkg/example/main.go")
+        .build("example");
+}
+```
+
+Windows:
+
+```rust
+fn main() {
+    cgo::Build::new()
+        .build_mode(cgo::BuildMode::CShared)
         .package("pkg/example/main.go")
         .build("example");
 }

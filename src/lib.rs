@@ -155,10 +155,59 @@ impl Build {
     ///
     /// Panics if any error occurs during compilation.
     pub fn build(&self, output: &str) {
+        if let Err(err) = self.try_tidy() {
+            eprintln!("\n\nerror occurred: {}\n", err);
+            process::exit(1);
+        }
         if let Err(err) = self.try_build(output) {
             eprintln!("\n\nerror occurred: {}\n", err);
             process::exit(1);
         }
+    }
+
+    /// Downloads the dependency
+    pub fn try_tidy(&self) -> Result<(), Error> {
+        let mut cmd = process::Command::new("go");
+
+        cmd.arg("mod").arg("tidy");
+        if let Some(change_dir) = &self.change_dir {
+            cmd.args([&"-C".into(), change_dir]);
+        }
+
+        let tidy_output = match cmd.output() {
+            Ok(tidy_output) => tidy_output,
+            Err(err) => {
+                return Err(Error::new(
+                    ErrorKind::ToolExecError,
+                    &format!("failed to execute go command: {}", err),
+                ));
+            }
+        };
+
+        if tidy_output.status.success() {
+            return Ok(());
+        }
+
+        let mut message = format!(
+            "failed to tidy Go library ({}). Tidy output:",
+            tidy_output.status
+        );
+
+        let mut push_output = |stream_name, bytes| {
+            let string = String::from_utf8_lossy(bytes);
+            let string = string.trim();
+
+            if string.is_empty() {
+                return;
+            }
+
+            write!(&mut message, "\n=== {stream_name}:\n{string}").unwrap();
+        };
+
+        push_output("stdout", &tidy_output.stdout);
+        push_output("stderr", &tidy_output.stderr);
+
+        Err(Error::new(ErrorKind::ToolExecError, &message))
     }
 
     /// Builds the Go package, generating the file `output`.
@@ -254,25 +303,32 @@ impl Build {
     }
 
     fn format_lib_name(&self, output: &str) -> PathBuf {
+        let target_os = goos_from_env().unwrap();
         let mut lib = String::with_capacity(output.len() + 7);
         lib.push_str("lib");
         lib.push_str(output);
         lib.push_str(match self.build_mode {
+            // It's odd here. neither `if cfg!(windows)` nor
+            // `#[cfg( target_os = "windows" )]` works here.
             BuildMode::CArchive => {
-                if cfg!(windows) {
+                // Only msvc toolchain will use `.lib` suffix.
+                // mingw toolchain will use `.a`.
+                let target_env = get_env_var("CARGO_CFG_TARGET_ENV").unwrap();
+                if target_os.eq("windows") && target_env.eq("msvc") {
                     ".lib"
                 } else {
                     ".a"
                 }
             }
             BuildMode::CShared => {
-                if cfg!(windows) {
+                if target_os.eq("windows") {
                     ".dll"
                 } else {
                     ".so"
                 }
             }
         });
+
         lib.into()
     }
 }
@@ -281,6 +337,7 @@ impl Build {
 ///
 /// Refer to the [Go docs](https://pkg.go.dev/cmd/go#hdr-Build_modes)
 /// for more information.
+/// Notice: Windows support `CShared` only
 #[derive(Clone, Debug, Default)]
 pub enum BuildMode {
     /// Build the listed main package, plus all packages it imports,
@@ -371,15 +428,26 @@ impl std::fmt::Display for Error {
 }
 
 fn get_cc() -> PathBuf {
-    cc::Build::new().get_compiler().path().to_path_buf()
+    #[cfg(not( target_os = "windows" ))]
+    return cc::Build::new().get_compiler().path().to_path_buf();
+    #[cfg( target_os = "windows" )]
+    return cc::Build::new().target("x86_64-pc-windows-gnu").get_compiler().path().to_path_buf();
 }
 
 fn get_cxx() -> PathBuf {
-    cc::Build::new()
-        .cpp(true)
-        .get_compiler()
-        .path()
-        .to_path_buf()
+    #[cfg(not( target_os = "windows" ))]
+    return cc::Build::new()
+            .cpp(true)
+            .get_compiler()
+            .path()
+            .to_path_buf();
+    #[cfg( target_os = "windows" )]
+    return cc::Build::new()
+            .cpp(true)
+            .target("x86_64-pc-windows-gnu")
+            .get_compiler()
+            .path()
+            .to_path_buf();
 }
 
 fn goarch_from_env() -> Result<String, Error> {
