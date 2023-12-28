@@ -303,25 +303,32 @@ impl Build {
     }
 
     fn format_lib_name(&self, output: &str) -> PathBuf {
+        let target_os = goos_from_env().unwrap();
         let mut lib = String::with_capacity(output.len() + 7);
         lib.push_str("lib");
         lib.push_str(output);
         lib.push_str(match self.build_mode {
+            // It's odd here. neither `if cfg!(windows)` nor
+            // `#[cfg( target_os = "windows" )]` works here.
             BuildMode::CArchive => {
-                if cfg!(windows) {
+                // Only msvc toolchain will use `.lib` suffix.
+                // mingw toolchain will use `.a`.
+                let target_env = get_env_var("CARGO_CFG_TARGET_ENV").unwrap();
+                if target_os.eq("windows") && target_env.eq("msvc") {
                     ".lib"
                 } else {
                     ".a"
                 }
             }
             BuildMode::CShared => {
-                if cfg!(windows) {
+                if target_os.eq("windows") {
                     ".dll"
                 } else {
                     ".so"
                 }
             }
         });
+
         lib.into()
     }
 }
