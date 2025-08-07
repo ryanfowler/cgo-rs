@@ -41,6 +41,7 @@ pub struct Build {
     change_dir: Option<PathBuf>,
     goarch: Option<String>,
     goos: Option<String>,
+    gcflags: Option<OsString>,
     ldflags: Option<OsString>,
     module_mode: Option<ModuleMode>,
     out_dir: Option<PathBuf>,
@@ -63,6 +64,7 @@ impl Build {
             change_dir: None,
             goarch: None,
             goos: None,
+            gcflags: None,
             ldflags: None,
             module_mode: None,
             out_dir: None,
@@ -109,6 +111,12 @@ impl Build {
     /// By default, this value is set from the CARGO_CFG_TARGET_OS env var.
     pub fn goos(&mut self, goos: &str) -> &mut Self {
         self.goos = Some(goos.to_owned());
+        self
+    }
+
+    /// Instruct the builder to pass in the provided gcflags during compilation.
+    pub fn gcflags<P: AsRef<OsStr>>(&mut self, gcflags: P) -> &mut Self {
+        self.gcflags = Some(gcflags.as_ref().to_os_string());
         self
     }
 
@@ -192,6 +200,9 @@ impl Build {
             // This flag is required to be the first flag used in the command as
             // of Go v1.21: https://tip.golang.org/doc/go1.21#go-command
             cmd.args([&"-C".into(), change_dir]);
+        }
+        if let Some(gcflags) = &self.gcflags {
+            cmd.args([&"-gcflags".into(), gcflags]);
         }
         if let Some(ldflags) = &self.ldflags {
             cmd.args([&"-ldflags".into(), ldflags]);
