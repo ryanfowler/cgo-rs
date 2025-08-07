@@ -164,7 +164,7 @@ impl Build {
     /// Panics if any error occurs during compilation.
     pub fn build(&self, output: &str) {
         if let Err(err) = self.try_build(output) {
-            eprintln!("\n\nerror occurred: {}\n", err);
+            eprintln!("\n\nerror occurred: {err}\n");
             process::exit(1);
         }
     }
@@ -224,7 +224,7 @@ impl Build {
             Err(err) => {
                 return Err(Error::new(
                     ErrorKind::ToolExecError,
-                    &format!("failed to execute go command: {}", err),
+                    &format!("failed to execute go command: {err}"),
                 ));
             }
         };
@@ -234,7 +234,7 @@ impl Build {
                 BuildMode::CArchive => "static",
                 BuildMode::CShared => "dylib",
             };
-            println!("cargo:rustc-link-lib={}={}", link_kind, output);
+            println!("cargo:rustc-link-lib={link_kind}={output}");
             println!("cargo:rustc-link-search=native={}", out_dir.display());
         }
 
@@ -408,7 +408,7 @@ fn goarch_from_env() -> Result<String, Error> {
         _ => {
             return Err(Error::new(
                 ErrorKind::InvalidGOARCH,
-                &format!("unexpected target arch {}", target_arch),
+                &format!("unexpected target arch {target_arch}"),
             ))
         }
     };
@@ -428,7 +428,7 @@ fn goos_from_env() -> Result<String, Error> {
         _ => {
             return Err(Error::new(
                 ErrorKind::InvalidGOOS,
-                &format!("unexpected target os {}", target_os),
+                &format!("unexpected target os {target_os}"),
             ))
         }
     };
@@ -439,7 +439,7 @@ fn get_env_var(key: &str) -> Result<String, Error> {
     env::var(key).map_err(|_| {
         Error::new(
             ErrorKind::EnvVarNotFound,
-            &format!("could not find environment variable {}", key),
+            &format!("could not find environment variable {key}"),
         )
     })
 }
