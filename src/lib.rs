@@ -393,6 +393,17 @@ enum ErrorKind {
     ToolExecError,
 }
 
+impl std::fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::EnvVarNotFound => "env var not found",
+            Self::InvalidGOARCH => "invalid GOARCH",
+            Self::InvalidGOOS => "invalid GOOS",
+            Self::ToolExecError => "tool exec error",
+        })
+    }
+}
+
 /// Represents an internal error that occurred, including an explanation.
 #[derive(Clone, Debug)]
 pub struct Error {
@@ -413,7 +424,7 @@ impl std::error::Error for Error {}
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}: {}", self.kind, self.message)
+        write!(f, "{}: {}", self.kind, self.message)
     }
 }
 
