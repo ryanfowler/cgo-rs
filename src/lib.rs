@@ -308,13 +308,7 @@ impl Build {
         lib.push_str("lib");
         lib.push_str(output);
         lib.push_str(match self.build_mode {
-            BuildMode::CArchive => {
-                if goos == "windows" {
-                    ".lib"
-                } else {
-                    ".a"
-                }
-            }
+            BuildMode::CArchive => ".a",
             BuildMode::CShared => {
                 if goos == "windows" {
                     ".dll"
