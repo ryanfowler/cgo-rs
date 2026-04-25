@@ -32,6 +32,7 @@ use std::{
     fmt::Write,
     path::{Path, PathBuf},
     process,
+    sync::OnceLock,
 };
 
 /// A builder for the compilation of a Go library.
@@ -430,15 +431,21 @@ impl std::fmt::Display for Error {
 }
 
 fn get_cc() -> PathBuf {
-    cc::Build::new().get_compiler().path().to_path_buf()
+    static CC: OnceLock<PathBuf> = OnceLock::new();
+    CC.get_or_init(|| cc::Build::new().get_compiler().path().to_path_buf())
+        .clone()
 }
 
 fn get_cxx() -> PathBuf {
-    cc::Build::new()
-        .cpp(true)
-        .get_compiler()
-        .path()
-        .to_path_buf()
+    static CXX: OnceLock<PathBuf> = OnceLock::new();
+    CXX.get_or_init(|| {
+        cc::Build::new()
+            .cpp(true)
+            .get_compiler()
+            .path()
+            .to_path_buf()
+    })
+    .clone()
 }
 
 fn goarch_from_env() -> Result<String, Error> {
