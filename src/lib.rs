@@ -26,6 +26,7 @@
 #![allow(clippy::needless_doctest_main)]
 
 use std::{
+    borrow::Cow,
     env,
     ffi::{OsStr, OsString},
     fmt::Write,
@@ -175,26 +176,26 @@ impl Build {
 
         // Use the provided values for GOARCH and GOOS, otherwise fetch the
         // values from the cargo build environnment variables.
-        let goarch = match &self.goarch {
-            None => goarch_from_env()?,
-            Some(goarch) => goarch.to_owned(),
+        let goarch: Cow<'_, str> = match &self.goarch {
+            None => Cow::Owned(goarch_from_env()?),
+            Some(goarch) => Cow::Borrowed(goarch),
         };
-        let goos = match &self.goos {
-            None => goos_from_env()?,
-            Some(goos) => goos.to_owned(),
+        let goos: Cow<'_, str> = match &self.goos {
+            None => Cow::Owned(goos_from_env()?),
+            Some(goos) => Cow::Borrowed(goos),
         };
 
         let lib_name = self.format_lib_name(output, &goos);
-        let out_dir = match &self.out_dir {
-            Some(out_dir) => out_dir.clone(),
-            None => get_env_var("OUT_DIR")?.into(),
+        let out_dir: Cow<'_, Path> = match &self.out_dir {
+            None => Cow::Owned(get_env_var("OUT_DIR")?.into()),
+            Some(out_dir) => Cow::Borrowed(out_dir),
         };
         let out_path = out_dir.join(lib_name);
 
         let mut cmd = process::Command::new("go");
         cmd.env("CGO_ENABLED", "1")
-            .env("GOOS", goos)
-            .env("GOARCH", goarch)
+            .env("GOOS", &*goos)
+            .env("GOARCH", &*goarch)
             .env("CC", get_cc())
             .env("CXX", get_cxx())
             .arg("build");
