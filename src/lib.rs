@@ -182,7 +182,7 @@ impl Build {
             Some(goos) => goos.to_owned(),
         };
 
-        let lib_name = self.format_lib_name(output);
+        let lib_name = self.format_lib_name(output, &goos);
         let out_dir = match &self.out_dir {
             Some(out_dir) => out_dir.clone(),
             None => get_env_var("OUT_DIR")?.into(),
@@ -263,20 +263,20 @@ impl Build {
         Err(Error::new(ErrorKind::ToolExecError, &message))
     }
 
-    fn format_lib_name(&self, output: &str) -> PathBuf {
+    fn format_lib_name(&self, output: &str, goos: &str) -> PathBuf {
         let mut lib = String::with_capacity(output.len() + 7);
         lib.push_str("lib");
         lib.push_str(output);
         lib.push_str(match self.build_mode {
             BuildMode::CArchive => {
-                if cfg!(windows) {
+                if goos == "windows" {
                     ".lib"
                 } else {
                     ".a"
                 }
             }
             BuildMode::CShared => {
-                if cfg!(windows) {
+                if goos == "windows" {
                     ".dll"
                 } else {
                     ".so"
