@@ -229,16 +229,15 @@ impl Build {
             }
         };
 
-        if self.cargo_metadata {
-            let link_kind = match self.build_mode {
-                BuildMode::CArchive => "static",
-                BuildMode::CShared => "dylib",
-            };
-            println!("cargo:rustc-link-lib={link_kind}={output}");
-            println!("cargo:rustc-link-search=native={}", out_dir.display());
-        }
-
         if build_output.status.success() {
+            if self.cargo_metadata {
+                let link_kind = match self.build_mode {
+                    BuildMode::CArchive => "static",
+                    BuildMode::CShared => "dylib",
+                };
+                println!("cargo:rustc-link-lib={link_kind}={output}");
+                println!("cargo:rustc-link-search=native={}", out_dir.display());
+            }
             return Ok(());
         }
 
