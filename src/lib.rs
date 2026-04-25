@@ -201,8 +201,9 @@ impl Build {
             .env("CXX", get_cxx())
             .arg("build");
         if let Some(change_dir) = &self.change_dir {
-            // This flag is required to be the first flag used in the command as
-            // of Go v1.21: https://tip.golang.org/doc/go1.21#go-command
+            // -C changes directory before running the command. Per the Go
+            // docs, -C should be used as a global flag (before the subcommand),
+            // but Go also accepts it after the subcommand.
             cmd.args([&"-C".into(), change_dir]);
         }
         if let Some(gcflags) = &self.gcflags {
