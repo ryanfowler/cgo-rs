@@ -171,6 +171,8 @@ impl Build {
 
     /// Builds the Go package, generating the file `output`.
     pub fn try_build(&self, output: &str) -> Result<(), Error> {
+        self.emit_rerun_if_changed();
+
         // Use the provided values for GOARCH and GOOS, otherwise fetch the
         // values from the cargo build environnment variables.
         let goarch = match &self.goarch {
@@ -261,6 +263,41 @@ impl Build {
         push_output("stderr", &build_output.stderr);
 
         Err(Error::new(ErrorKind::ToolExecError, &message))
+    }
+
+    fn emit_rerun_if_changed(&self) {
+        for package in &self.packages {
+            let package_path = match &self.change_dir {
+                Some(dir) => dir.join(package),
+                None => package.clone(),
+            };
+            println!("cargo:rerun-if-changed={}", package_path.display());
+
+            if let Ok(dir) = self.go_list_dir(package) {
+                println!("cargo:rerun-if-changed={}", dir.display());
+            }
+        }
+    }
+
+    fn go_list_dir(&self, package: &Path) -> Result<PathBuf, ()> {
+        let mut cmd = process::Command::new("go");
+        cmd.arg("list");
+        if let Some(change_dir) = &self.change_dir {
+            cmd.args([&"-C".into(), change_dir]);
+        }
+        cmd.args(["-f", "{{.Dir}}"]);
+        cmd.arg(package);
+
+        let output = cmd.output().map_err(|_| ())?;
+        if !output.status.success() {
+            return Err(());
+        }
+        let stdout = String::from_utf8(output.stdout).map_err(|_| ())?;
+        let dir = stdout.trim();
+        if dir.is_empty() {
+            return Err(());
+        }
+        Ok(PathBuf::from(dir))
     }
 
     fn format_lib_name(&self, output: &str, goos: &str) -> PathBuf {
